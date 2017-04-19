@@ -41,8 +41,6 @@ api = tweepy.API(auth, parser=tweepy.parsers.JSONParser())
 
 #I will set up a try/except block where I will try to open the project JSON file and put the string contents in a dictionary. If there is no such file, I will create an empty dictionary and store it in a variable called CACHE_DICT. 
 
-#moana = omdb.get(title = "Moana", year = 2016, fullplot = "short", tomatoes = True)
-#print(moana)
 CACHE_FILE = "206_data_access_cache.json"
 try: 
 	cached_data = open(CACHE_FILE, "r")
@@ -51,6 +49,81 @@ try:
 	CACHE_DICT = json.loads(file_contents)
 except: 
 	CACHE_DICT = {}
+
+#I will define a function called get_movie_info that caches movie data from OMDB. Then, I will invoke the function and store the return value in a variable called movie_info. 
+def get_movie_info(s):
+	unique_key = "omdb_{}".format(s)
+	if unique_key in CACHE_DICT: 
+		print("Using cached data for", s)
+		pass 
+	else: 
+		print("Getting new data from omdb for", s)
+		movie_data = omdb.get(title = s, fullplot = False, tomatoes = True)
+		CACHE_DICT[unique_key] = movie_data
+		fileref = open(CACHE_FILE, "w")
+		fileref.write(json.dumps(CACHE_DICT))
+		fileref.close()		
+	return CACHE_DICT[unique_key]
+
+
+#I will put the three movie title search terms in a list. 
+omdb_movie_titles_list = ["Moana","The Hundred-Foot Journey", "Fantastic Beasts and Where to Find Them"]
+
+
+#I will invoke the get_movie_info function on each of the three movie titles. 
+list_of_movie_dictionaries = []
+for element in omdb_movie_titles_list:
+	list_of_movie_dictionaries.append(get_movie_info(element))
+
+
+#I will define a class called Movie that takes the dictionary with the movie's information as input to its constructor. 
+class Movie(object):
+	def __init__(self, movie_dict):
+		self.movie_id = movie_dict["imdb_id"]
+		self.movie_title = movie_dict["title"]
+		self.movie_director = movie_dict["director"]
+		self.movie_rating = movie_dict["imdb_rating"]
+		self.release_date_US = movie_dict["released"]
+		self.runtime_in_min = movie_dict["runtime"]
+		self.movie_languages = movie_dict["language"]
+		self.cast_list = movie_dict["actors"]
+
+	def num_languages(self):
+		return len(self.movie_languages.split())
+
+	def top_billed_actor(self): 
+		return self.cast_list.split(",") [0]
+
+	def __str__(self):
+		return "The movie '{}' , IMDB id = {}, has been rated {} stars out of 10 on IMDB and can be found in {} language(s). One of the main actors in the movie is {}.".format(self.movie_title, self.movie_id, self.movie_rating, self.num_languages(), self.top_billed_actor())
+	
+	def tuple_of_data(self):
+		movie_info_tuple = (self.movie_id, self.movie_title, self.movie_director, self.num_languages(), self.movie_rating, self.top_billed_actor(), self.release_date_US, self.runtime_in_min)
+		return movie_info_tuple
+
+
+#I will create a list of instances of class Movie. 
+list_of_movie_instances = []
+for element in list_of_movie_dictionaries: 
+	a_movie = Movie(element) 
+	list_of_movie_instances.append(a_movie)
+
+
+#I will make a connection to a new database finalproject.db. I will also create a variable to contain the database cursor. 
+db_conn = sqlite3.connect("finalproject.db")
+db_cur = db_conn.cursor()
+
+#I will give instructions to drop the Movies table if it exists and create the table with the 8 column names and types of each. 
+
+db_cur.execute("DROP TABLE IF EXISTS Movies")
+db_cur.execute("CREATE TABLE Movies (movie_id TEXT PRIMARY KEY, movie_title TEXT, movie_director TEXT, num_languages INTEGER, movie_rating INTEGER, top_billed_actor TEXT, release_date_US TIMESTAMP, runtime_in_min TIMESTAMP)") 
+
+#I will now insert the movie data into the Movies table using a for loop. 
+insert_statement = "INSERT INTO Movies Values (?,?,?,?,?,?,?,?)"
+for element in list_of_movie_instances: 
+	db_cur.execute(insert_statement, element.tuple_of_data())
+
+db_conn.commit()
 
 # I will define a function called get_tweet_info that caches search term data from Twitter. Then, I will invoke the function and store the return value in a variable called movie_tweets. 
 def get_tweet_info(s): 
@@ -66,82 +139,162 @@ def get_tweet_info(s):
 		fileref = open(CACHE_FILE, "w")
 		fileref.write(json.dumps(CACHE_DICT))
 		fileref.close()
-	return CACHE_DICT
+	return CACHE_DICT[unique_key]
 
-movie_tweets = get_tweet_info("Moana")
-#print(movie_tweets)
+# I will define a function called get_user_info that caches user info data from the Twitter search term data. 
+def get_user_info(twitter_dict):
+	for x in twitter_dict:
+		for element in x["entities"]["user_mentions"]:
+			unique_key = "twitter_{}".format(element["screen_name"])
+			if unique_key in CACHE_DICT:
+				print("Using cached user data for", element["screen_name"])
+				pass 
+			else:
+				print("Getting new user data from web for", element["screen_name"])
+				user_favs = api.favorites(element["screen_name"])
+				user_description = api.get_user(element["screen_name"])
+				CACHE_DICT[unique_key] = {}
+				CACHE_DICT[unique_key]["favs"]= user_favs
+				CACHE_DICT[unique_key]["description"] = user_description["description"]
+				fileref = open(CACHE_FILE, 'w')
+				fileref.write(json.dumps(CACHE_DICT))
+				fileref.close()
+			if unique_key in CACHE_DICT: 
+				print("Using cached user data for", x["user"]["screen_name"])
+				pass 
+			else:
+				print("Getting new user data from web for", x["user"]["screen_name"])
+				user_num_favs = api.favorites(x["user"]["screen_name"])
+				CACHE_DICT[unique_key] = {}
+				CACHE_DICT[unique_key]["favs"]= user_num_favs
+				CACHE_DICT[unique_key]["description"] = x["user"]["description"]
+				fileref = open(CACHE_FILE, 'w')
+				fileref.write(json.dumps(CACHE_DICT))
+				fileref.close()
+	return CACHE_DICT[unique_key]
 
-print("--------------------------------------------------------")
-
-#I will define a function called get_movie_info that caches movie data from OMDB. Then, I will invoke the function and store the return value in a variable called movie_info. 
-def get_movie_info(s, y):
-	unique_key = "omdb_{}".format(s)
-	if unique_key in CACHE_DICT: 
-		print("Using cached data for", s)
-		pass 
-	else: 
-		print("Getting new data from omdb for", s)
-		movie_data = omdb.get(title = s, year = y, fullplot = False, tomatoes = True)
-		CACHE_DICT[unique_key] = movie_data
-		fileref = open(CACHE_FILE, "w")
-		fileref.write(json.dumps(CACHE_DICT))
-		fileref.close()
-	return CACHE_DICT
-
-movie_info = get_movie_info(s = "Moana", y= 2016)
-movie_info2 = get_movie_info(s = "The Hundred-Foot Journey", y = 2014)
-movie_info3 = get_movie_info(s = "Fantastic Beasts and Where to Find Them", y = 2016)
-#print(movie_info["omdb_Moana"])
-
-#I will define a class called Movie that takes the dictionary with the movie's information as input to its constructor. 
-class Movie(object):
-	def __init__(self, movie_dict):
-		self.movie_title = movie_dict["title"]
-		self.movie_rating = movie_dict["imdb_rating"]
-		self.movie_languages = movie_dict["language"]
-		self.cast_list = movie_dict["actors"]
-
-	def num_languages(self):
-		return len(self.movie_languages.split())
-
-	def top_billed_actor(self): 
-		return self.cast_list.split(",") [0]
+#I will define a class called Tweet that takes a dictionary with the search term's information as input to its constructor. 
+class Tweet(object): 
+	def __init__(self, twitter_dict, movie_id): 
+		self.tweet_text = twitter_dict["text"]
+		self.tweet_id = twitter_dict["id"]
+		self.user_id = twitter_dict["user"]["id"]
+		self.movie_id = movie_id
+		self.num_favs = twitter_dict["favorite_count"]
+		self.num_retweets = twitter_dict["retweet_count"]
 
 	def __str__(self):
-		return "The movie '{}' has been rated {} stars out of 10 on IMDB and can be found in {} language(s). One of the main actors in the movie is {}.".format(self.movie_title, self.movie_rating, self.num_languages(), self.top_billed_actor())
-		
+		return "{} {} {} {} {}".format(self.tweet_id, self.user_id, self.movie_id, self.num_favs, self.num_retweets)
+
+	def tuple_of_tweet_data(self):
+		tweet_tuple = (self.tweet_id, self.tweet_text, self.user_id, self.movie_id, self.num_favs, self.num_retweets)
+		return tweet_tuple
+
+#I will give instructions to drop the Tweets table if it exists and create the table with the 6 column names and types of each. 
+db_cur.execute("DROP TABLE IF EXISTS Tweets")
+db_cur.execute("CREATE TABLE Tweets (tweet_id TEXT PRIMARY KEY, tweet_text TEXT, user_id TEXT, movie_id TEXT, num_favs INTEGER, num_retweets INTEGER, FOREIGN KEY (movie_id) REFERENCES Movies (movie_id))") 
+
+#I will define a function that retrieves the movie's id from the Movies table. 
+def get_movie_id(s):
+	q1 = "SELECT movie_id FROM Movies WHERE movie_title = '{}' ".format(s)
+	db_cur.execute(q1)
+	movie_id_info = db_cur.fetchall()
+	return movie_id_info[0][0]
 
 
-
-moana = Movie(movie_info["omdb_Moana"])
-print(moana.movie_title)
-print(moana.movie_rating)
-print(moana.movie_languages)
-print(moana.top_billed_actor())
-print(moana.__str__())
-print("------------------------------------")
-hundred_foot = Movie(movie_info2["omdb_The Hundred-Foot Journey"])
-print(hundred_foot.movie_rating)
-print(hundred_foot.num_languages())
-#print(hundred_foot.cast_list)
-print(hundred_foot.top_billed_actor())
-print(hundred_foot.__str__())
-print("------------------------------------")
-fantastic_beasts = Movie(movie_info3["omdb_Fantastic Beasts and Where to Find Them"])
-print(fantastic_beasts.movie_rating)
-print(fantastic_beasts.top_billed_actor())
+#I will define a function that retrieves the movie's top billed actor from the Movies table. 
+def get_movie_actor(s): 
+	q2 = "SELECT top_billed_actor FROM Movies WHERE movie_title = '{}' ".format(s)
+	db_cur.execute(q2)
+	movie_actor_info = db_cur.fetchall()
+	return movie_actor_info[0][0]
 
 
+#I will create a list that holds Tweet instances of the top billed actor and movie id from each movie. 
+list_of_actor_tweet_instances = []
+for a_movie in omdb_movie_titles_list:
+	a_movie_id = get_movie_id(a_movie)
+	a_movie_actor = get_movie_actor(a_movie)
+	a_movie_tweets = get_tweet_info(a_movie_actor)
+	for each_tweet in a_movie_tweets:
+		an_instance = Tweet(each_tweet, a_movie_id)
+		list_of_actor_tweet_instances.append(an_instance)
 
+#I will now insert the tweet movie actor data into the Tweets table using a for loop.  
+insert_tweet_statement = "INSERT OR IGNORE INTO Tweets Values (?,?,?,?,?,?)"
+for element in list_of_actor_tweet_instances: 
+	db_cur.execute(insert_tweet_statement, element.tuple_of_tweet_data())
 
+#I will use the database connection to commit the changes to the database. 
+db_conn.commit()
 
+#I will create a list that hold Tweet instances of each actor.
 
+actor_list = ["Auli'i Cravalho", "Helen Mirren", "Eddie Redmayne"]
+list_of_movie_info = []
+for element in actor_list: 
+	tweet_info = get_tweet_info(element)
+	list_of_movie_info.append(tweet_info)
 
+#I will invoke the get_user_info function on each Tweet instance.
+
+list_of_user_info = []
+for y in list_of_movie_info: 
+	user_info = get_user_info(y)
+	list_of_user_info.append(user_info)
+print(list_of_user_info)
 
 
 # Put your tests here, with any edits you now need from when you turned them in with your project plan.
+class TestProject(unittest.TestCase):
+	def test_movie_caching(self): 
+		fname = open("206_data_access_cache.json", "r")
+		filecon = fname.read()
+		fname.close 
+		self.assertTrue("Moana" in filecon) #testing whether movie data is in json file
+	def test_get_OMDB_data(self): 
+		movie_data = get_movie_info("Moana")
+		self.assertEqual = (movie_data, {"Title":"Moana","Year":"2016","Rated":"PG","Released":"23 Nov 2016","Runtime":"107 min","Genre":"Animation, Adventure, Comedy","Director":"Ron Clements, Don Hall, John Musker, Chris Williams","Writer":"Jared Bush (screenplay), Ron Clements (story by), John Musker (story by), Chris Williams (story by), Don Hall (story by), Pamela Ribon (story by), Aaron Kandell (story by), Jordan Kandell (story by)","Actors":"Auli'i Cravalho, Dwayne Johnson, Rachel House, Temuera Morrison","Plot":"In Ancient Polynesia, when a terrible curse incurred by the Demigod Maui reaches an impetuous Chieftain's daughter's island, she answers the Ocean's call to seek out the Demigod to set things right.","Language":"English","Country":"USA","Awards":"Nominated for 2 Oscars. Another 11 wins & 66 nominations.","Poster":"https://images-na.ssl-images-amazon.com/images/M/MV5BMjI4MzU5NTExNF5BMl5BanBnXkFtZTgwNzY1MTEwMDI@._V1_SX300.jpg","Ratings":[{"Source":"Internet Movie Database","Value":"7.7/10"},{"Source":"Rotten Tomatoes","Value":"95%"},{"Source":"Metacritic","Value":"81/100"}],"Metascore":"81","imdbRating":"7.7","imdbVotes":"93,475","imdbID":"tt3521164","Type":"movie","DVD":"07 Mar 2017","BoxOffice":"$248,558,024.00","Production":"Walt Disney Pictures","Website":"http://movies.disney.com/moana","Response":"True"}) #testing whether return value of function get_OMDB_data gives correct information 
+	def test_tweet_info(self):
+		movie_tweets = get_tweet_info("moana")
+		self.assertEqual(type(movie_tweets), type([])) #testing whether return value of function get_tweet_info is a list
+	def test_tweet_info2(self):
+		movie_tweets = get_tweet_info("fantastic beasts") 
+		self.assertEqual(type(movie_tweets[0]), type({})) #testing if first element of function get_tweet_info is a dictionary
+	def test_Movie_string(self):
+		movie = get_movie_info("Moana")
+		movie_class = Movie(movie)
+		self.assertEqual(type(movie_class.__str__()), type("")) #testing if __str__() method for Movie class returns a string
+	def test_Movie_top_actor(self): 
+		movie2 = get_movie_info("Fantastic Beasts and Where to Find Them")
+		movie2_class = Movie(movie2)
+		self.assertEqual(movie2_class.top_billed_actor(), "Eddie Redmayne") #testing whether top_billed_actor method for Movie class returns correct value
+	def test_Movie_num_languages(self): 
+		movie3 = get_movie_info("The Hundred-Foot Journey")
+		movie3_class = Movie(movie3)
+		self.assertEqual(movie3_class.num_languages(), 2) #testing whether num_languages method for Movie class returns correct value
+	def test_get_movie_id(self): 
+		one_movie_id = get_movie_id("The Hundred-Foot Journey")
+		self.assertEqual(one_movie_id, "tt2980648") #testing that get_movie_id function returns correct movie id for movie 
+	def test_get_movie_id2(self): 
+		movie_id_value = get_movie_id("Moana")
+		self.assertEqual(type(movie_id_value), type("")) #testing that get_movie_id function's return value is a string 
+	def test_get_movie_actor(self): 
+		movie_actor_name = get_movie_actor("Fantastic Beasts and Where to Find Them")
+		self.assertEqual(movie_actor_name, "Eddie Redmayne") #testing that get_movie_actor function returns the correct actor name for movie 
+	def test_twtable_columns(self):
+		db_conn = sqlite3.connect("finalproject.db")
+		db_cur = db_conn.cursor()
+		db_cur.execute("SELECT * FROM Tweets")
+		tweets = db_cur.fetchall()
+		self.assertTrue(len(tweets[1]) == 6) #testing that there are 6 columns in the tweet table 
+		db_conn.close()
+
 
 # Remember to invoke your tests so they will run! (Recommend using the verbosity=2 argument.)
-#if __name__ == "__main__":
-#	unittest.main(verbosity=2)	
+if __name__ == "__main__":
+	unittest.main(verbosity=2)	
+
+#I will close the cursor to the database. 
+db_conn.close()
 
