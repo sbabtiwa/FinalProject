@@ -50,7 +50,7 @@ try:
 except: 
 	CACHE_DICT = {}
 
-#I will define a function called get_movie_info that caches movie data from OMDB. Then, I will invoke the function and store the return value in a variable called movie_info. 
+#I will define a function called get_movie_info that caches movie data from OMDB. 
 def get_movie_info(s):
 	unique_key = "omdb_{}".format(s)
 	if unique_key in CACHE_DICT: 
@@ -66,11 +66,11 @@ def get_movie_info(s):
 	return CACHE_DICT[unique_key]
 
 
-#I will put the three movie title search terms in a list. 
+#I will put the three movie title search terms in a list called omdb_movie_titles_list. 
 omdb_movie_titles_list = ["Moana","The Hundred-Foot Journey", "Fantastic Beasts and Where to Find Them"]
 
 
-#I will invoke the get_movie_info function on each of the three movie titles. 
+#I will invoke the get_movie_info function on each of the three movie titles and store the return values in a list called list_of_movie_dictionaries. 
 list_of_movie_dictionaries = []
 for element in omdb_movie_titles_list:
 	list_of_movie_dictionaries.append(get_movie_info(element))
@@ -102,7 +102,7 @@ class Movie(object):
 		return movie_info_tuple
 
 
-#I will create a list of instances of class Movie. 
+#I will create a list called list_of_movie_instances that has instances of class Movie. 
 list_of_movie_instances = []
 for element in list_of_movie_dictionaries: 
 	a_movie = Movie(element) 
@@ -114,7 +114,6 @@ db_conn = sqlite3.connect("finalproject.db")
 db_cur = db_conn.cursor()
 
 #I will give instructions to drop the Movies table if it exists and create the table with the 8 column names and types of each. 
-
 db_cur.execute("DROP TABLE IF EXISTS Movies")
 db_cur.execute("CREATE TABLE Movies (movie_id TEXT PRIMARY KEY, movie_title TEXT, movie_director TEXT, num_languages INTEGER, movie_rating INTEGER, top_billed_actor TEXT, release_date_US TIMESTAMP, runtime_in_min TIMESTAMP)") 
 
@@ -125,7 +124,7 @@ for element in list_of_movie_instances:
 
 db_conn.commit()
 
-# I will define a function called get_tweet_info that caches search term data from Twitter. Then, I will invoke the function and store the return value in a variable called movie_tweets. 
+# I will define a function called get_tweet_info that caches search term data from Twitter. 
 def get_tweet_info(s): 
 	unique_key = "twitter_{}".format(s)
 	if unique_key in CACHE_DICT: 
@@ -194,7 +193,7 @@ class Tweet(object):
 db_cur.execute("DROP TABLE IF EXISTS Tweets")
 db_cur.execute("CREATE TABLE Tweets (tweet_id TEXT PRIMARY KEY, tweet_text TEXT, user_id TEXT, movie_id TEXT, num_favs INTEGER, num_retweets INTEGER, FOREIGN KEY (movie_id) REFERENCES Movies (movie_id))") 
 
-#I will define a function that retrieves the movie's id from the Movies table. 
+#I will define a function called get_movie_id that retrieves the movie's id from the Movies table. 
 def get_movie_id(s):
 	q1 = "SELECT movie_id FROM Movies WHERE movie_title = '{}' ".format(s)
 	db_cur.execute(q1)
@@ -202,7 +201,7 @@ def get_movie_id(s):
 	return movie_id_info[0][0]
 
 
-#I will define a function that retrieves the movie's top billed actor from the Movies table. 
+#I will define a function called get_movie_actor that retrieves the movie's top billed actor from the Movies table. 
 def get_movie_actor(s): 
 	q2 = "SELECT top_billed_actor FROM Movies WHERE movie_title = '{}' ".format(s)
 	db_cur.execute(q2)
@@ -210,7 +209,7 @@ def get_movie_actor(s):
 	return movie_actor_info[0][0]
 
 
-#I will create a list that holds Tweet instances of the top billed actor and movie id from each movie. 
+#I will create a list called list_of_actor_tweet_instances that holds Tweet instances of the top billed actor and movie id from each movie. 
 list_of_actor_tweet_instances = []
 for a_movie in omdb_movie_titles_list:
 	a_movie_id = get_movie_id(a_movie)
@@ -228,21 +227,19 @@ for element in list_of_actor_tweet_instances:
 #I will use the database connection to commit the changes to the database. 
 db_conn.commit()
 
-#I will create a list that hold Tweet instances of each actor.
-
+#I will create a list called actor_list that holds get_tweet_info instances of each actor.
 actor_list = ["Auli'i Cravalho", "Helen Mirren", "Eddie Redmayne"]
 list_of_movie_info = []
 for element in actor_list: 
 	tweet_info = get_tweet_info(element)
 	list_of_movie_info.append(tweet_info)
 
-#I will invoke the get_user_info function on each Tweet instance.
-
+#I will invoke the get_user_info function on each Tweet instance and store them in a list called list_of_user_info.
 list_of_user_info = []
 for y in list_of_movie_info: 
 	user_info = get_user_info(y)
 	list_of_user_info.append(user_info)
-print(list_of_user_info)
+#print(list_of_user_info)
 
 
 # Put your tests here, with any edits you now need from when you turned them in with your project plan.
@@ -261,6 +258,10 @@ class TestProject(unittest.TestCase):
 	def test_tweet_info2(self):
 		movie_tweets = get_tweet_info("fantastic beasts") 
 		self.assertEqual(type(movie_tweets[0]), type({})) #testing if first element of function get_tweet_info is a dictionary
+	def test_user_info(self): 
+		movie_tweets = get_tweet_info("hundred-foot journey")
+		user_data = get_user_info(movie_tweets)
+		self.assertEqual(type(user_data), type({})) #testing if return value of function get_user_info is a dictionary
 	def test_Movie_string(self):
 		movie = get_movie_info("Moana")
 		movie_class = Movie(movie)
