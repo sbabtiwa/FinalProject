@@ -41,22 +41,26 @@ api = tweepy.API(auth, parser=tweepy.parsers.JSONParser())
 
 #I will set up a try/except block where I will try to open the project JSON file and put the string contents in a dictionary. If there is no such file, I will create an empty dictionary and store it in a variable called CACHE_DICT. 
 
-CACHE_FILE = "206_data_access_cache.json"
-try: 
+CACHE_FILE = "206_final_project_cache.json"
+try:
 	cached_data = open(CACHE_FILE, "r")
 	file_contents = cached_data.read()
 	cached_data.close()
-	CACHE_DICT = json.load(file_contents)
-	for majorkey, subdict in CACHE_DICT.iteritems():
-		print (majorkey)
-		for subkey, value in subdict.iteritems():
-			print (subkey, value)
+	CACHE_DICT = json.loads(file_contents)
+	#for majorkey, subdict in CACHE_DICT.iteritems():
+		#print (majorkey)
+		#for subkey, value in subdict.iteritems():
+			#print (subkey, value)
+	CACHE_DICT.keys()
+	CACHE_DICT["MOVIE_DICT"].keys()
+	CACHE_DICT["TWITTER_DICT"].keys()
+	(CACHE_DICT["USER_DICT"].keys())
 
 except: 
 	CACHE_DICT = {}
-	CACHE_DICT["MOVIE_DICT"] = {}
-	CACHE_DICT["TWITTER_DICT"] = {}
-	CACHE_DICT["USER_DICT"] = {}
+	#CACHE_DICT["MOVIE_DICT"] = {}
+	#CACHE_DICT["TWITTER_DICT"] = {}
+	#CACHE_DICT["USER_DICT"] = {}
 
 #I will define a function called get_movie_info that caches movie data from OMDB. 
 def get_movie_info(s):
@@ -69,7 +73,7 @@ def get_movie_info(s):
 		movie_data = omdb.get(title = s, fullplot = False, tomatoes = True)
 		CACHE_DICT["MOVIE_DICT"][unique_key] = movie_data
 		fileref = open(CACHE_FILE, "w")
-		fileref.write(json.dumps(CACHE_DICT["MOVIE_DICT"]))
+		fileref.write(json.dumps(CACHE_DICT))
 		fileref.close()		
 	return CACHE_DICT["MOVIE_DICT"][unique_key]
 
@@ -179,6 +183,7 @@ def get_user_info(twitter_dict):
 				fileref.write(json.dumps(CACHE_DICT))
 				fileref.close()
 
+			list_of_all_users.append(CACHE_DICT["USER_DICT"][unique_key])
 			#list_of_all_users.append(CACHE_DICT[unique_key]["id"])
 			#list_of_all_users.append(CACHE_DICT[unique_key]["screen_name"])
 			#list_of_all_users.append(CACHE_DICT[unique_key]["favs"])
@@ -208,10 +213,11 @@ def get_user_info(twitter_dict):
 			fileref.write(json.dumps(CACHE_DICT))
 			fileref.close()
 
-		list_of_all_users.append(CACHE_DICT["USER_DICT"][unique_key]["id"])
-		list_of_all_users.append(CACHE_DICT["USER_DICT"][unique_key]["screen_name"])
-		list_of_all_users.append(CACHE_DICT["USER_DICT"][unique_key]["favs"])
-		list_of_all_users.append(CACHE_DICT["USER_DICT"][unique_key]["description"])
+		#list_of_all_users.append(CACHE_DICT["USER_DICT"][unique_key]["id"])
+		#list_of_all_users.append(CACHE_DICT["USER_DICT"][unique_key]["screen_name"])
+		#list_of_all_users.append(len(CACHE_DICT["USER_DICT"][unique_key]["favs"]))
+		#list_of_all_users.append(CACHE_DICT["USER_DICT"][unique_key]["description"])
+		list_of_all_users.append(CACHE_DICT["USER_DICT"][unique_key])
 
 	return list_of_all_users
 
@@ -234,7 +240,8 @@ class Tweet(object):
 
 #I will give instructions to drop the Tweets table if it exists and create the table with the 6 column names and types of each. 
 db_cur.execute("DROP TABLE IF EXISTS Tweets")
-db_cur.execute("CREATE TABLE Tweets (tweet_id TEXT PRIMARY KEY, tweet_text TEXT, user_id TEXT, movie_id TEXT, num_favs INTEGER, num_retweets INTEGER, FOREIGN KEY (movie_id) REFERENCES Movies (movie_id))") 
+db_cur.execute("CREATE TABLE Tweets (tweet_id TEXT PRIMARY KEY, tweet_text TEXT, user_id TEXT, movie_id TEXT, num_favs INTEGER, num_retweets INTEGER, FOREIGN KEY (user_id) REFERENCES Users (user_id), FOREIGN KEY (movie_id) REFERENCES Movies (movie_id))") 
+
 
 #I will define a function called get_movie_id that retrieves the movie's id from the Movies table. 
 def get_movie_id(s):
@@ -284,16 +291,24 @@ db_conn.commit()
 
 #I will invoke the get_user_info function on each Tweet instance and store them in a list called list_of_user_info. 
 #Temporary code as well. 
-#list_of_user_info = []
+list_of_user_info = []
 #for y in list_of_movie_info: 
 	#user_info = get_user_info(y)
 	#print(user_info)
 	#list_of_user_info.append(user_info)
 #print(list_of_user_info)
-#for y in list_of_instances: 
-	#user_info = get_user_info(y)
+for y in list_of_instances: 
+	user_info = get_user_info(y)
 	#print(user_info)
-	#list_of_user_info.append(user_info)
+	list_of_user_info.append(user_info)
+#print(list_of_user_info)
+#print("TRYING TO FIND THE ANSWER")
+#for each_element in list_of_user_info:
+	#print(type(each_element))
+	#print("----------------------------------")
+	#for inside_user in each_element: 
+		#print(inside_user)
+#print(list_of_user_info)
 
 #In some of the JSON files that are created, I get the error below. I was wondering how this could be avoided. Is it because I'm caching too many users? 
 #Traceback (most recent call last):
@@ -312,16 +327,18 @@ class TwitterUser(object):
 	def __init__(self, user_dict):
 		self.users_id = user_dict["id"]
 		self.users_screen_name = user_dict["screen_name"]
-		self.users_favs = user_dict["favs"]
+		self.users_favs = len(user_dict["favs"])
+		self.users_description = user_dict["description"]
 
-	def return_favs_len(self):
-		return len(self.users_favs)
+	#def return_favs_len(self):
+		#return len(self.users_favs)
 
 	def __str__(self): 
 		return "{} {} {}".format(self.users_id, self.users_screen_name, self.users_favs)
 
 	def tuple_of_users_data(self): 
-		users_tuple = (self.users_id, self.users_screen_name, self.users_favs)
+		users_tuple = (self.users_id, self.users_screen_name, self.users_favs, self.users_description)
+		return users_tuple
 
 
 print(CACHE_DICT.keys())
@@ -344,12 +361,30 @@ print(CACHE_DICT.keys())
 	#print(each_tweet.keys())
 	#user_instance = TwitterUser(each_tweet)
 	#print(str(user_instance))
+list_user_instances = []
+for each_element in list_of_user_info:
+	#print(type(each_element))
+	for inside_user in each_element: 
+		user_instance = TwitterUser(inside_user)
+		print(str(user_instance))
+		list_user_instances.append(user_instance)
+print(len(list_user_instances))
 
 
-#I will give instructions to drop the Users table if it exists and create the table with the 3 column names and types of each. 
+#I will give instructions to drop the Users table if it exists and create the table with the 4 column names and types of each. 
+db_cur.execute("DROP TABLE IF EXISTS Users")
+db_cur.execute("CREATE TABLE Users (user_id TEXT PRIMARY KEY, user_screen_name TEXT, user_favs INTEGER, user_description TEXT)") 
 
 #I will insert the user info data into the Users table using a for loop. 
+insert_user_statement = "INSERT OR IGNORE INTO Users Values (?,?,?,?)"
+for element in list_user_instances:
+	db_cur.execute(insert_user_statement, element.tuple_of_users_data())
 
+db_conn.commit()
+
+#insert_tweet_statement = "INSERT OR IGNORE INTO Tweets Values (?,?,?,?,?,?)"
+#for element in list_of_actor_tweet_instances: 
+	#db_cur.execute(insert_tweet_statement, element.tuple_of_tweet_data())
 #I will make a query that finds the maximum number of favorited tweets for a movie title, so I will be joining the Tweets table and Movies table. I will save the result in a variable called max_num_fav_tweets.
 
 #I will make a query that finds all the users who tweeted about a specific movie, so I will be joining the Tweets, Users, and Movies table. The result will be saved in a variable called users_tweets_movie.
