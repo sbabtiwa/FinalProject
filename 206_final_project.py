@@ -22,6 +22,7 @@ import twitter_info
 import json 
 import sqlite3 
 import itertools
+from itertools import filterfalse
 import requests
 import omdb 
 
@@ -51,16 +52,16 @@ try:
 		#print (majorkey)
 		#for subkey, value in subdict.iteritems():
 			#print (subkey, value)
-	CACHE_DICT.keys()
-	CACHE_DICT["MOVIE_DICT"].keys()
-	CACHE_DICT["TWITTER_DICT"].keys()
-	(CACHE_DICT["USER_DICT"].keys())
+	#print(CACHE_DICT.keys())
+	#print(CACHE_DICT["MOVIE_DICT"].keys())
+	#print(CACHE_DICT["TWITTER_DICT"].keys())
+	#print(CACHE_DICT["USER_DICT"].keys())
 
 except: 
 	CACHE_DICT = {}
-	#CACHE_DICT["MOVIE_DICT"] = {}
-	#CACHE_DICT["TWITTER_DICT"] = {}
-	#CACHE_DICT["USER_DICT"] = {}
+	CACHE_DICT["MOVIE_DICT"] = {}
+	CACHE_DICT["TWITTER_DICT"] = {}
+	CACHE_DICT["USER_DICT"] = {}
 
 #I will define a function called get_movie_info that caches movie data from OMDB. 
 def get_movie_info(s):
@@ -79,7 +80,7 @@ def get_movie_info(s):
 
 
 #I will put the three movie title search terms in a list called omdb_movie_titles_list. 
-omdb_movie_titles_list = ["Moana","The Hundred-Foot Journey", "Fantastic Beasts and Where to Find Them"]
+omdb_movie_titles_list = ["Inside Out","Rogue One", "Fantastic Beasts and Where to Find Them"]
 
 
 #I will invoke the get_movie_info function on each of the three movie titles and store the return values in a list called list_of_movie_dictionaries. 
@@ -168,15 +169,18 @@ def get_user_info(twitter_dict):
 				pass 
 			else:
 				print("Getting new user data from web for", element["screen_name"])
-				user_id = element["id_str"]
-				user_screen_name = element["screen_name"]
-				user_favs = api.favorites(element["screen_name"])
-				user_description = api.get_user(element["screen_name"])
+				mention_user_id = element["id_str"]
+				mention_user_screen_name = element["screen_name"]
+				#user_favs = len(api.favorites(element["screen_name"]))
+				mention_user_info= api.get_user(element["screen_name"])
 				CACHE_DICT["USER_DICT"][unique_key] = {}
-				CACHE_DICT["USER_DICT"][unique_key]["id"] = user_id
-				CACHE_DICT["USER_DICT"][unique_key]["screen_name"] = user_screen_name
-				CACHE_DICT["USER_DICT"][unique_key]["favs"]= user_favs
-				CACHE_DICT["USER_DICT"][unique_key]["description"] = user_description["description"]
+				CACHE_DICT["USER_DICT"][unique_key]["id"] = mention_user_id
+				CACHE_DICT["USER_DICT"][unique_key]["screen_name"] = mention_user_screen_name
+				CACHE_DICT["USER_DICT"][unique_key]["favs"]= mention_user_info["favourites_count"]
+				CACHE_DICT["USER_DICT"][unique_key]["description"] = mention_user_info["description"]
+				CACHE_DICT["USER_DICT"][unique_key]["location"] = mention_user_info["location"]
+				CACHE_DICT["USER_DICT"][unique_key]["language"] = mention_user_info["lang"]
+				CACHE_DICT["USER_DICT"][unique_key]["followers"] = mention_user_info["followers_count"]
 				#list_of_all_users = []
 				#list_of_all_users.append(CACHE_DICT[unique_key])
 				fileref = open(CACHE_FILE, 'w')
@@ -201,12 +205,15 @@ def get_user_info(twitter_dict):
 		else:
 			print("Getting new user data from web for", x["user"]["screen_name"])
 			#a_user_id = x["user"]["id_str"]
-			user_num_favs = api.favorites(x["user"]["screen_name"])
+			#user_num_favs = api.favorites(x["user"]["screen_name"])
 			CACHE_DICT["USER_DICT"][unique_key] = {}
 			CACHE_DICT["USER_DICT"][unique_key]["id"] = x["user"]["id_str"]
 			CACHE_DICT["USER_DICT"][unique_key]["screen_name"] = x["user"]["screen_name"]
-			CACHE_DICT["USER_DICT"][unique_key]["favs"]= user_num_favs
+			CACHE_DICT["USER_DICT"][unique_key]["favs"] = x["user"]["favourites_count"]
 			CACHE_DICT["USER_DICT"][unique_key]["description"] = x["user"]["description"]
+			CACHE_DICT["USER_DICT"][unique_key]["location"] = x["user"]["location"]
+			CACHE_DICT["USER_DICT"][unique_key]["language"] = x["user"]["lang"]
+			CACHE_DICT["USER_DICT"][unique_key]["followers"] = x["user"]["followers_count"]
 			#list_of_all_users = []
 			#list_of_all_users.append(CACHE_DICT[unique_key])
 			fileref = open(CACHE_FILE, 'w')
@@ -327,8 +334,11 @@ class TwitterUser(object):
 	def __init__(self, user_dict):
 		self.users_id = user_dict["id"]
 		self.users_screen_name = user_dict["screen_name"]
-		self.users_favs = len(user_dict["favs"])
+		self.users_favs = user_dict["favs"]
 		self.users_description = user_dict["description"]
+		self.users_location = user_dict["location"]
+		self.users_language = user_dict["language"]
+		self.users_followers  = user_dict["followers"]
 
 	#def return_favs_len(self):
 		#return len(self.users_favs)
@@ -337,7 +347,7 @@ class TwitterUser(object):
 		return "{} {} {}".format(self.users_id, self.users_screen_name, self.users_favs)
 
 	def tuple_of_users_data(self): 
-		users_tuple = (self.users_id, self.users_screen_name, self.users_favs, self.users_description)
+		users_tuple = (self.users_id, self.users_screen_name, self.users_favs, self.users_description, self.users_location, self.users_language, self.users_followers)
 		return users_tuple
 
 
@@ -371,12 +381,12 @@ for each_element in list_of_user_info:
 print(len(list_user_instances))
 
 
-#I will give instructions to drop the Users table if it exists and create the table with the 4 column names and types of each. 
+#I will give instructions to drop the Users table if it exists and create the table with the 7 column names and types of each. 
 db_cur.execute("DROP TABLE IF EXISTS Users")
-db_cur.execute("CREATE TABLE Users (user_id TEXT PRIMARY KEY, user_screen_name TEXT, user_favs INTEGER, user_description TEXT)") 
+db_cur.execute("CREATE TABLE Users (user_id TEXT PRIMARY KEY, user_screen_name TEXT, user_favs INTEGER, user_description TEXT, user_location TEXT, user_language TEXT, user_followers INTEGER)") 
 
 #I will insert the user info data into the Users table using a for loop. 
-insert_user_statement = "INSERT OR IGNORE INTO Users Values (?,?,?,?)"
+insert_user_statement = "INSERT OR IGNORE INTO Users Values (?,?,?,?,?,?,?)"
 for element in list_user_instances:
 	db_cur.execute(insert_user_statement, element.tuple_of_users_data())
 
@@ -387,11 +397,82 @@ db_conn.commit()
 	#db_cur.execute(insert_tweet_statement, element.tuple_of_tweet_data())
 #I will make a query that finds the maximum number of favorited tweets for a movie title, so I will be joining the Tweets table and Movies table. I will save the result in a variable called max_num_fav_tweets.
 
+#q3 = "SELECT COUNT(*) FROM Users, WHERE user_language = en"
+
+#Movies ordered by number of tweets received from English speaking users. 
+q3 = "SELECT Tweets.movie_id FROM Tweets INNER JOIN Users ON Tweets.user_id = Users.user_id WHERE Users.user_language = 'en'"
+db_cur.execute(q3)
+all_movie_actors_tweeted_eng_users = db_cur.fetchall()
+movie_actors_eng_users = [x[0] for x in all_movie_actors_tweeted_eng_users]
+count_movies = collections.Counter()
+for id_movie in movie_actors_eng_users: 
+	count_movies[id_movie] += 1
+print(count_movies)
+#SELECT movie_id, COUNT(user_id) FROM Tweets GROUP BY movie_id
+#SELECT Tweets.movie_id, COUNT(Tweets.user_id) FROM Tweets INNER JOIN Users ON Tweets.user_id = Users.user_id WHERE Users.user_language = 'en'  GROUP BY movie_id 
+
 #I will make a query that finds all the users who tweeted about a specific movie, so I will be joining the Tweets, Users, and Movies table. The result will be saved in a variable called users_tweets_movie.
+
+#A set comprehension of all words with a length greater than 5 that appeared in tweets about Inside Out star Amy Poehler 
+q4 = "SELECT Tweets.tweet_text FROM Tweets WHERE movie_id = 'tt2096673'"
+db_cur.execute(q4)
+all_tweet_text_inside_out = db_cur.fetchall()
+#print(all_tweet_text_inside_out)
+tweet_text_list = [text[0] for text in all_tweet_text_inside_out]
+#print(tweet_text_list)
+
+words_inside_out_tweets = []
+for line in tweet_text_list: 
+	the_words = line.split()
+	for each_word in the_words:
+		words_inside_out_tweets.append(each_word)
+#print(words_inside_out_tweets)
+
+#def words_greater_five(x):
+	#if len(x) > 5: 
+		#return x 
+
+list_of_medium_words = list(filter(lambda x: len(x) > 5, words_inside_out_tweets))
+#print(list_of_medium_words)
+#for each_word in list_of_medium_words: 
+	#print(each_word)
+
+set_of_medium_words = {word for word in list_of_medium_words}
+print(set_of_medium_words)
+#dictionary_of_medium_words = {}
+#for a_word in list_of_medium_words:
+	#if a_word not in dictionary_of_medium_words:
+		#dictionary_of_medium_words[each_word] += 1 
+	#else: 
+		#dictionary_of_medium_words[each_word] = 1
+#most_common_word = max(word for word in list_of_medium_words)
+#print(most_common_word)
+
+
+
+
+#A list of users sorted by most followers to least that have favorites greater than 25. 
+q5 = "SELECT user_screen_name, user_followers FROM Users WHERE user_favs > 25"
+db_cur.execute(q5)
+all_users_with_favs_greater_25 = db_cur.fetchall()
+#print(all_users_with_favs_greater_25)
+tuples_all_users = []
+for each_tuple in all_users_with_favs_greater_25: 
+	tuples_all_users.append(each_tuple)
+#print (tuples_all_users)
+
+sorted_users = sorted(tuples_all_users, key = lambda x: x[1], reverse = True)
+print(sorted_users)
+
+#user_with_most_followers = sorted_users[0]
+#print(user_with_most_followers)
+
+
 
 #I will process the data using four processing mechanisms. Two of the mechanics are a set comprehension called set_of_hashtags and a Counter called most_common_movie_name (which will be found from the tweets).
 
 #I will write collected data to a "projectdata.txt" file. It will contain 3 movie titles, a twitter summary, OMDB information about each of the movies, and the date of processing. 
+
 
 # Put your tests here, with any edits you now need from when you turned them in with your project plan.
 #class TestProject(unittest.TestCase):
@@ -399,10 +480,10 @@ db_conn.commit()
 		#fname = open("206_data_access_cache.json", "r")
 		#filecon = fname.read()
 		#fname.close 
-		#self.assertTrue("Moana" in filecon) #testing whether movie data is in json file
+		#self.assertTrue("Inside Out" in filecon) #testing whether movie data is in json file
 	#def test_get_OMDB_data(self): 
 		#movie_data = get_movie_info("Moana")
-		#self.assertEqual = (movie_data, {"Title":"Moana","Year":"2016","Rated":"PG","Released":"23 Nov 2016","Runtime":"107 min","Genre":"Animation, Adventure, Comedy","Director":"Ron Clements, Don Hall, John Musker, Chris Williams","Writer":"Jared Bush (screenplay), Ron Clements (story by), John Musker (story by), Chris Williams (story by), Don Hall (story by), Pamela Ribon (story by), Aaron Kandell (story by), Jordan Kandell (story by)","Actors":"Auli'i Cravalho, Dwayne Johnson, Rachel House, Temuera Morrison","Plot":"In Ancient Polynesia, when a terrible curse incurred by the Demigod Maui reaches an impetuous Chieftain's daughter's island, she answers the Ocean's call to seek out the Demigod to set things right.","Language":"English","Country":"USA","Awards":"Nominated for 2 Oscars. Another 11 wins & 66 nominations.","Poster":"https://images-na.ssl-images-amazon.com/images/M/MV5BMjI4MzU5NTExNF5BMl5BanBnXkFtZTgwNzY1MTEwMDI@._V1_SX300.jpg","Ratings":[{"Source":"Internet Movie Database","Value":"7.7/10"},{"Source":"Rotten Tomatoes","Value":"95%"},{"Source":"Metacritic","Value":"81/100"}],"Metascore":"81","imdbRating":"7.7","imdbVotes":"93,475","imdbID":"tt3521164","Type":"movie","DVD":"07 Mar 2017","BoxOffice":"$248,558,024.00","Production":"Walt Disney Pictures","Website":"http://movies.disney.com/moana","Response":"True"}) #testing whether return value of function get_OMDB_data gives correct information 
+		#self.assertEqual = (movie_data, {"Title":"Inside Out","Year":"2015","Rated":"PG","Released":"19 Jun 2015","Runtime":"95 min","Genre":"Animation, Adventure, Comedy","Director":"Pete Docter, Ronnie Del Carmen","Writer":"Pete Docter (original story by), Ronnie Del Carmen (original story by), Pete Docter (screenplay), Meg LeFauve (screenplay), Josh Cooley (screenplay), Michael Arndt (additional story material by), Bill Hader (additional dialogue by), Amy Poehler (additional dialogue by), Simon Rich (additional story material by)","Actors":"Amy Poehler, Phyllis Smith, Richard Kind, Bill Hader","Plot":"After young Riley is uprooted from her Midwest life and moved to San Francisco, her emotions - Joy, Fear, Anger, Disgust and Sadness - conflict on how best to navigate a new city, house, and school.","Language":"English","Country":"USA","Awards":"Won 1 Oscar. Another 91 wins & 95 nominations.","Poster":"https://images-na.ssl-images-amazon.com/images/M/MV5BOTgxMDQwMDk0OF5BMl5BanBnXkFtZTgwNjU5OTg2NDE@._V1_SX300.jpg","Ratings":[{"Source":"Internet Movie Database","Value":"8.2/10"},{"Source":"Rotten Tomatoes","Value":"98%"},{"Source":"Metacritic","Value":"94/100"}],"Metascore":"94","imdbRating":"8.2","imdbVotes":"410,309","imdbID":"tt2096673","Type":"movie","DVD":"03 Nov 2015","BoxOffice":"$264,317,903.00","Production":"Disney/Pixar","Website":"https://www.facebook.com/PixarInsideOut","Response":"True"}) #testing whether return value of function get_OMDB_data gives correct information 
 	#def test_tweet_info(self):
 		#movie_tweets = get_tweet_info("moana")
 		#self.assertEqual(type(movie_tweets), type([])) #testing whether return value of function get_tweet_info is a list
