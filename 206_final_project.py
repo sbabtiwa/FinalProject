@@ -22,9 +22,10 @@ import twitter_info
 import json 
 import sqlite3 
 import itertools
-from itertools import filterfalse
 import requests
-import omdb 
+import omdb
+import re
+from datetime import datetime
 
 # Begin filling in instructions....
 
@@ -108,7 +109,7 @@ class Movie(object):
 		return self.cast_list.split(",") [0]
 
 	def __str__(self):
-		return "The movie '{}' , IMDB id = {}, has been rated {} stars out of 10 on IMDB and can be found in {} language(s). One of the main actors in the movie is {}.".format(self.movie_title, self.movie_id, self.movie_rating, self.num_languages(), self.top_billed_actor())
+		return "The movie '{}' , IMDB id = {}, has been rated {} stars out of 10 on IMDB and can be found in {} language(s). One of the main actors in the movie is {}. The movie was released on {}.".format(self.movie_title, self.movie_id, self.movie_rating, self.num_languages(), self.top_billed_actor(), self.release_date_US)
 	
 	def tuple_of_data(self):
 		movie_info_tuple = (self.movie_id, self.movie_title, self.movie_director, self.num_languages(), self.movie_rating, self.top_billed_actor(), self.release_date_US, self.runtime_in_min)
@@ -270,7 +271,7 @@ def get_movie_actor(s):
 list_of_actor_tweet_instances = []
 list_of_instances = []
 for a_movie in omdb_movie_titles_list:
-	a_movie_id = get_movie_id(a_movie)
+	#a_movie_id = get_movie_id(a_movie)
 	a_movie_actor = get_movie_actor(a_movie)
 	a_movie_tweets = get_tweet_info(a_movie_actor)
 	list_of_instances.append(a_movie_tweets)
@@ -407,14 +408,18 @@ movie_actors_eng_users = [x[0] for x in all_movie_actors_tweeted_eng_users]
 count_movies = collections.Counter()
 for id_movie in movie_actors_eng_users: 
 	count_movies[id_movie] += 1
-print(count_movies)
+dict_of_movies = dict(count_movies)
+#print(type(dict_of_movies))
+#for key, value in dict_of_movies.items(): 
+	#print(key, value)
 #SELECT movie_id, COUNT(user_id) FROM Tweets GROUP BY movie_id
 #SELECT Tweets.movie_id, COUNT(Tweets.user_id) FROM Tweets INNER JOIN Users ON Tweets.user_id = Users.user_id WHERE Users.user_language = 'en'  GROUP BY movie_id 
 
 #I will make a query that finds all the users who tweeted about a specific movie, so I will be joining the Tweets, Users, and Movies table. The result will be saved in a variable called users_tweets_movie.
 
-#A set comprehension of all words with a length greater than 5 that appeared in tweets about Inside Out star Amy Poehler 
-q4 = "SELECT Tweets.tweet_text FROM Tweets WHERE movie_id = 'tt2096673'"
+#A set comprehension of all words with a length greater than 5 that appeared in tweets about top billed actor in movie Inside Out. 
+#alphanumeric words only 
+q4 = "SELECT Tweets.tweet_text FROM Tweets INNER JOIN Movies ON Tweets.movie_id = Movies.movie_id WHERE Movies.movie_title = 'Inside Out'"
 db_cur.execute(q4)
 all_tweet_text_inside_out = db_cur.fetchall()
 #print(all_tweet_text_inside_out)
@@ -425,28 +430,42 @@ words_inside_out_tweets = []
 for line in tweet_text_list: 
 	the_words = line.split()
 	for each_word in the_words:
-		words_inside_out_tweets.append(each_word)
+		#if set('[~!@#$%^&*()_+{}":;\']+$').intersection(each_word):
+		#if re.match(r"[~\!@#\$%\^&\*\(\)_\+{}\":;'\[\]]", each_word):
+		if re.match(r"^[a-zA-Z0-9]*$", each_word):
+			#continue
+			words_inside_out_tweets.append(each_word)
+		else: 
+			print(each_word)
+			#words_inside_out_tweets.append(each_word)
+			#continue
 #print(words_inside_out_tweets)
 
 #def words_greater_five(x):
 	#if len(x) > 5: 
 		#return x 
 
-list_of_medium_words = list(filter(lambda x: len(x) > 5, words_inside_out_tweets))
+list_of_long_words = list(filter(lambda x: len(x) > 5, words_inside_out_tweets))
 #print(list_of_medium_words)
 #for each_word in list_of_medium_words: 
 	#print(each_word)
 
-set_of_medium_words = {word for word in list_of_medium_words}
-print(set_of_medium_words)
+set_of_long_words = {word for word in list_of_long_words}
+#print(set_of_long_words)
 #dictionary_of_medium_words = {}
 #for a_word in list_of_medium_words:
 	#if a_word not in dictionary_of_medium_words:
 		#dictionary_of_medium_words[each_word] += 1 
 	#else: 
 		#dictionary_of_medium_words[each_word] = 1
-#most_common_word = max(word for word in list_of_medium_words)
-#print(most_common_word)
+most_common_word = max(len(word) for word in set_of_long_words)
+print(most_common_word)
+
+#for word in set_of_long_words:
+	#if set('[~!@#$%^&*()_+{}":;\']+$').intersection(word):
+		#continue
+	#else:
+		#print(word + "  " + str(len(word)))
 
 
 
@@ -467,54 +486,120 @@ print(sorted_users)
 #user_with_most_followers = sorted_users[0]
 #print(user_with_most_followers)
 
+#actor_list = []
+#for each_movie in omdb_movie_titles_list: 
+	#actor_name = get_movie_actor(each_movie)
+	#actor_list.append(actor_name)
 
+#print(actor_list)
+q6 = "SELECT movie_title, movie_id, top_billed_actor FROM Movies"
+db_cur.execute(q6)
+movie_and_actor_tuples = db_cur.fetchall()
+print(movie_and_actor_tuples)
+#for each_tuple in movie_and_actor_tuples: 
+	#print(each_tuple[0])
 
 #I will process the data using four processing mechanisms. Two of the mechanics are a set comprehension called set_of_hashtags and a Counter called most_common_movie_name (which will be found from the tweets).
 
 #I will write collected data to a "projectdata.txt" file. It will contain 3 movie titles, a twitter summary, OMDB information about each of the movies, and the date of processing. 
-
+file_object = open("projectdata.txt", "w")
+file_object.write("Summary Stats for 206 Final Project Option 2" + "\n")
+file_object.write("by Sanika Babtiwale" + "\n")
+file_object.write("\n")
+file_object.write("The top-billed actors in movies Inside Out, Rogue One, and Fantastic Beasts and Where to Find Them with movie ids" + "\n")
+file_object.write("\n")
+for each_tuple in movie_and_actor_tuples: 
+	file_object.write(str(each_tuple[0])+ ","+ " " + str(each_tuple[1]) +":" + " " + str(each_tuple[2]) + "\n")
+file_object.write("\n")
+file_object.write("Movie ids ordered by number of tweets about top-billed actors from English speaking users" + "\n")
+file_object.write("\n")
+for key, value in dict_of_movies.items(): 
+	file_object.write(str(key) + ":" + " " + str(value) + "\n")
+file_object.write("\n")
+file_object.write("The number of alphanuneric tweets that mentioned Amy Poehler with a length greater than 5 characters" + "\n")
+file_object.write("\n")
+file_object.write("Amount:" + " " + str(most_common_word) + "\n")
+file_object.write("\n")
+file_object.write("The users from most followers to least that have favorites greater than 25" + "\n")
+file_object.write("\n")
+for each_user in sorted_users: 
+	file_object.write("User" + " " + str(each_user[0])+ "'s " + "number of followers: " + " " + str(each_user[1]) + "\n")
+	file_object.write("\n")
+file_object.write("\n")
+#file_object.write("DATE OF PROCESSING: " + datetime.strftime(datetime.now(), '%Y/%m/%d_%H:%M:%S'))
+file_object.write("DATE OF PROCESSING: " + datetime.strftime(datetime.now(), '%Y/%m/%d'))
+file_object.close()
 
 # Put your tests here, with any edits you now need from when you turned them in with your project plan.
-#class TestProject(unittest.TestCase):
-	#def test_movie_caching(self): 
-		#fname = open("206_data_access_cache.json", "r")
-		#filecon = fname.read()
-		#fname.close 
-		#self.assertTrue("Inside Out" in filecon) #testing whether movie data is in json file
-	#def test_get_OMDB_data(self): 
-		#movie_data = get_movie_info("Moana")
-		#self.assertEqual = (movie_data, {"Title":"Inside Out","Year":"2015","Rated":"PG","Released":"19 Jun 2015","Runtime":"95 min","Genre":"Animation, Adventure, Comedy","Director":"Pete Docter, Ronnie Del Carmen","Writer":"Pete Docter (original story by), Ronnie Del Carmen (original story by), Pete Docter (screenplay), Meg LeFauve (screenplay), Josh Cooley (screenplay), Michael Arndt (additional story material by), Bill Hader (additional dialogue by), Amy Poehler (additional dialogue by), Simon Rich (additional story material by)","Actors":"Amy Poehler, Phyllis Smith, Richard Kind, Bill Hader","Plot":"After young Riley is uprooted from her Midwest life and moved to San Francisco, her emotions - Joy, Fear, Anger, Disgust and Sadness - conflict on how best to navigate a new city, house, and school.","Language":"English","Country":"USA","Awards":"Won 1 Oscar. Another 91 wins & 95 nominations.","Poster":"https://images-na.ssl-images-amazon.com/images/M/MV5BOTgxMDQwMDk0OF5BMl5BanBnXkFtZTgwNjU5OTg2NDE@._V1_SX300.jpg","Ratings":[{"Source":"Internet Movie Database","Value":"8.2/10"},{"Source":"Rotten Tomatoes","Value":"98%"},{"Source":"Metacritic","Value":"94/100"}],"Metascore":"94","imdbRating":"8.2","imdbVotes":"410,309","imdbID":"tt2096673","Type":"movie","DVD":"03 Nov 2015","BoxOffice":"$264,317,903.00","Production":"Disney/Pixar","Website":"https://www.facebook.com/PixarInsideOut","Response":"True"}) #testing whether return value of function get_OMDB_data gives correct information 
-	#def test_tweet_info(self):
-		#movie_tweets = get_tweet_info("moana")
-		#self.assertEqual(type(movie_tweets), type([])) #testing whether return value of function get_tweet_info is a list
-	#def test_tweet_info2(self):
-		#movie_tweets = get_tweet_info("fantastic beasts") 
-		#self.assertEqual(type(movie_tweets[0]), type({})) #testing if first element of function get_tweet_info is a dictionary
-	#def test_user_info(self): 
-		#movie_tweets = get_tweet_info("hundred-foot journey")
-		#user_data = get_user_info(movie_tweets)
-		#self.assertEqual(type(user_data), type([])) #testing if return value of function get_user_info is a dictionary
-	#def test_Movie_string(self):
-		#movie = get_movie_info("Moana")
+class TestProject(unittest.TestCase):
+	def test_movie_caching(self): 
+		fname = open("206_final_project_cache.json", "r")
+		filecon = fname.read()
+		fname.close 
+		self.assertTrue("Inside Out" in filecon) #testing whether movie data is in json file
+	def test_get_OMDB_data(self): 
+		movie_data = get_movie_info("Inside Out")
+		self.assertEqual = (movie_data, {"Title":"Inside Out","Year":"2015","Rated":"PG","Released":"19 Jun 2015","Runtime":"95 min","Genre":"Animation, Adventure, Comedy","Director":"Pete Docter, Ronnie Del Carmen","Writer":"Pete Docter (original story by), Ronnie Del Carmen (original story by), Pete Docter (screenplay), Meg LeFauve (screenplay), Josh Cooley (screenplay), Michael Arndt (additional story material by), Bill Hader (additional dialogue by), Amy Poehler (additional dialogue by), Simon Rich (additional story material by)","Actors":"Amy Poehler, Phyllis Smith, Richard Kind, Bill Hader","Plot":"After young Riley is uprooted from her Midwest life and moved to San Francisco, her emotions - Joy, Fear, Anger, Disgust and Sadness - conflict on how best to navigate a new city, house, and school.","Language":"English","Country":"USA","Awards":"Won 1 Oscar. Another 91 wins & 95 nominations.","Poster":"https://images-na.ssl-images-amazon.com/images/M/MV5BOTgxMDQwMDk0OF5BMl5BanBnXkFtZTgwNjU5OTg2NDE@._V1_SX300.jpg","Ratings":[{"Source":"Internet Movie Database","Value":"8.2/10"},{"Source":"Rotten Tomatoes","Value":"98%"},{"Source":"Metacritic","Value":"94/100"}],"Metascore":"94","imdbRating":"8.2","imdbVotes":"410,309","imdbID":"tt2096673","Type":"movie","DVD":"03 Nov 2015","BoxOffice":"$264,317,903.00","Production":"Disney/Pixar","Website":"https://www.facebook.com/PixarInsideOut","Response":"True"}) #testing whether return value of function get_OMDB_data gives correct information 
+	def test_Movie_init(self): 
+		movie = get_movie_info("Rogue One")
+		movie_class = Movie(movie)
+		self.assertEqual(str(movie_class.movie_rating),"8.0") #testing that __init__ method of Movie class returns a correct instance value. 
+	def test_Movie_string(self):
+		movie = get_movie_info("Rogue One")
+		movie_class = Movie(movie)
+		self.assertEqual(type(movie_class.__str__()), type("")) #testing if __str__() method for Movie class returns a string
+	def test_Movie_top_actor(self): 
+		movie = get_movie_info("Fantastic Beasts and Where to Find Them")
+		movie_class = Movie(movie)
+		self.assertEqual(movie_class.top_billed_actor(), "Eddie Redmayne") #testing whether top_billed_actor method for Movie class returns correct value
+	def test_Movie_num_languages(self): 
+		movie = get_movie_info("Inside Out")
+		movie_class = Movie(movie)
+		self.assertEqual(movie_class.num_languages(), 1) #testing whether num_languages method for Movie class returns correct value
+	#def test_Movie_tuple(self): 
+		#movie = get_movie_info("Rogue One")
 		#movie_class = Movie(movie)
-		#self.assertEqual(type(movie_class.__str__()), type("")) #testing if __str__() method for Movie class returns a string
-	#def test_Movie_top_actor(self): 
-		#movie2 = get_movie_info("Fantastic Beasts and Where to Find Them")
-		#movie2_class = Movie(movie2)
-		#self.assertEqual(movie2_class.top_billed_actor(), "Eddie Redmayne") #testing whether top_billed_actor method for Movie class returns correct value
-	#def test_Movie_num_languages(self): 
-		#movie3 = get_movie_info("The Hundred-Foot Journey")
-		#movie3_class = Movie(movie3)
-		#self.assertEqual(movie3_class.num_languages(), 2) #testing whether num_languages method for Movie class returns correct value
-	#def test_get_movie_id(self): 
-		#one_movie_id = get_movie_id("The Hundred-Foot Journey")
-		#self.assertEqual(one_movie_id, "tt2980648") #testing that get_movie_id function returns correct movie id for movie 
+		#self.assertEqual((str(movie_class.tuple_of_data())),("tt3748528", "Rogue One", "Gareth Edwards", 1, "8.0", "Felicity Jones", "16 Dec 2016", "133 min")) #testing if tuple_of_data method for Movie class returns correct value
+	def test_tweet_info(self):
+		movie_tweets = get_tweet_info("Felicity Jones")
+		self.assertEqual(type(movie_tweets), type([])) #testing whether return value of function get_tweet_info is a list
+	def test_tweet_info2(self):
+		movie_tweets = get_tweet_info("Eddie Redmayne") 
+		self.assertEqual(type(movie_tweets[0]), type({})) #testing if first element of function get_tweet_info is a dictionary
+	def test_user_info(self): 
+		movie_tweets = get_tweet_info("Amy Poehler")
+		user_data = get_user_info(movie_tweets)
+		self.assertEqual(type(user_data), type([])) #testing if return value of function get_user_info is a dictionary
+	#def test_Tweet_init(self): 
+		#actor_tweets = get_tweet_info("Felicity Jones")
+		#movie_id = get_movie_id("Rogue One")
+		#for each_tweet in actor_tweets: 
+			#tweet_info = Tweet(each_tweet, movie_id)
+		#self.assertEqual(str(tweet_info.movie_id), '') #testing if __init__ method of Tweet class returns correct instance value.
+	#def test_Tweet_str(self):
+		#actor_tweets = get_tweet_info("Eddie Redmayne")
+		#movie_id = get_movie_id("Fantastic Beasts and Where to Find Them")
+		#for each_tweet in actor_tweets: 
+			#tweet_string = Tweet(each_tweet, movie_id)
+		#self.assertEqual(tweet_string.__str__(), type("")) #testing that __str__ method of Tweet class returns a string
+	#def test_Tweet_tuple(self):
+	def test_get_movie_id(self): 
+		one_movie_id = get_movie_id("Rogue One")
+		self.assertEqual(one_movie_id, "tt3748528") #testing that get_movie_id function returns correct movie id for movie 
 	#def test_get_movie_id2(self): 
 		#movie_id_value = get_movie_id("Moana")
 		#self.assertEqual(type(movie_id_value), type("")) #testing that get_movie_id function's return value is a string 
-	#def test_get_movie_actor(self): 
-		#movie_actor_name = get_movie_actor("Fantastic Beasts and Where to Find Them")
-		#self.assertEqual(movie_actor_name, "Eddie Redmayne") #testing that get_movie_actor function returns the correct actor name for movie 
+	def test_get_movie_actor(self): 
+		movie_actor_name = get_movie_actor("Fantastic Beasts and Where to Find Them")
+		self.assertEqual(movie_actor_name, "Eddie Redmayne") #testing that get_movie_actor function returns the correct actor name for movie
+	#def test_get_user_info(self):
+		#actor_tweets = get_tweet_info("Amy Poehler")
+		#for each_tweet in actor_tweets: 
+			#tweet_users = get_user_info(each_tweet)
+		#self.assertEqual(type(tweet_users), type({}))
+	#def test_TwitterUser_init(self): 
+	#def test_TwitterUser__str__(self):
+	#def test_TwitterUser_tuple(self):
 	#def test_twtable_columns(self):
 		#db_conn = sqlite3.connect("finalproject.db")
 		#db_cur = db_conn.cursor()
@@ -522,7 +607,6 @@ print(sorted_users)
 		#tweets = db_cur.fetchall()
 		#self.assertTrue(len(tweets[1]) == 6) #testing that there are 6 columns in the tweet table 
 		#db_conn.close()
-
 
 # Remember to invoke your tests so they will run! (Recommend using the verbosity=2 argument.)
 if __name__ == "__main__":
