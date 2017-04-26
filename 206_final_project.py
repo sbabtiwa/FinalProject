@@ -115,6 +115,7 @@ insert_statement = "INSERT INTO Movies Values (?,?,?,?,?,?,?,?)"
 for element in list_of_movie_instances: 
 	db_cur.execute(insert_statement, element.tuple_of_data())
 
+#I will use the database connection to commit the changes to the database. 
 db_conn.commit()
 
 # I will define a function called get_tweet_info that caches search term data from Twitter. 
@@ -202,11 +203,7 @@ class Tweet(object):
 	def tuple_of_tweet_data(self):
 		tweet_tuple = (self.tweet_id, self.tweet_text, self.user_id, self.movie_id, self.num_favs, self.num_retweets)
 		return tweet_tuple
-
-#I will give instructions to drop the Tweets table if it exists and create the table with the 6 column names and types of each. 
-db_cur.execute("DROP TABLE IF EXISTS Tweets")
-db_cur.execute("CREATE TABLE Tweets (tweet_id TEXT PRIMARY KEY, tweet_text TEXT, user_id TEXT, movie_id TEXT, num_favs INTEGER, num_retweets INTEGER, FOREIGN KEY (user_id) REFERENCES Users (user_id), FOREIGN KEY (movie_id) REFERENCES Movies (movie_id))") 
-
+ 
 
 #I will define a function called get_movie_id that retrieves the movie's id from the Movies table. 
 def get_movie_id(s):
@@ -235,6 +232,10 @@ for a_movie in omdb_movie_titles_list:
 	for each_tweet in a_movie_tweets:
 		an_instance = Tweet(each_tweet, a_movie_id)
 		list_of_actor_tweet_instances.append(an_instance)
+
+#I will give instructions to drop the Tweets table if it exists and create the table with the 6 column names and types of each. 
+db_cur.execute("DROP TABLE IF EXISTS Tweets")
+db_cur.execute("CREATE TABLE Tweets (tweet_id TEXT PRIMARY KEY, tweet_text TEXT, user_id TEXT, movie_id TEXT, num_favs INTEGER, num_retweets INTEGER, FOREIGN KEY (user_id) REFERENCES Users (user_id), FOREIGN KEY (movie_id) REFERENCES Movies (movie_id))") 
 
 #I will now insert the tweet movie actor data into the Tweets table using a for loop.  
 insert_tweet_statement = "INSERT OR IGNORE INTO Tweets Values (?,?,?,?,?,?)"
@@ -274,7 +275,6 @@ list_user_instances = []
 for each_element in list_of_user_info:
 	for inside_user in each_element: 
 		user_instance = TwitterUser(inside_user)
-		print(str(user_instance))
 		list_user_instances.append(user_instance)
 
 
@@ -287,6 +287,7 @@ insert_user_statement = "INSERT OR IGNORE INTO Users Values (?,?,?,?,?,?,?)"
 for element in list_user_instances:
 	db_cur.execute(insert_user_statement, element.tuple_of_users_data())
 
+#I will use the database connection to commit the changes to the database. 
 db_conn.commit()
 
 #I will make a query that finds the movie ids of tweets posted by English speaking users about a top billed actor in each movie, so I will be joining the Tweets table and Users table. I will use a counter to count the number of tweets per movie and save the resulting dictionary in a variable called dict_of_movies. The keys of the dictionary will be the movie id while the values are the number of tweets. 
