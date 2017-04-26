@@ -14,7 +14,6 @@ import omdb
 import re
 from datetime import datetime
 
-# Begin filling in instructions....
 
 #Twitter authentication information from HW 5 
 consumer_key = twitter_info.consumer_key
@@ -300,6 +299,7 @@ count_movies = collections.Counter()
 for id_movie in movie_actors_eng_users: 
 	count_movies[id_movie] += 1
 dict_of_movies = dict(count_movies)
+print (dict_of_movies)
 
 
 #I will make a query that finds all the tweets about actress Amy Poehler from the movie Inside Out. Then, I will take the text and split the words. I will use regular expressions to find alphanumeric words and filter those words to find those that are longer than 5 characters. Finally, I will make a set comprehension and find the word with the longest length. 
@@ -319,7 +319,7 @@ for line in tweet_text_list:
 list_of_long_words = list(filter(lambda x: len(x) > 5, words_inside_out_tweets))
 
 set_of_long_words = {word for word in list_of_long_words}
-most_common_word = max(len(word) for word in set_of_long_words)
+longest_word_length = max(len(word) for word in set_of_long_words)
 
 
 #I will make a query that finds all users' screen names and number of followers from the Users table who have favorites greater than 25. I will store the resulting tuples in a list called tuples_all_users. Then, I will sort the users by most number of followers to least and store the result in a variable called sorted_users. 
@@ -346,28 +346,38 @@ file_object.write("Summary Stats for 206 Final Project Option 2" + "\n")
 file_object.write("by Sanika Babtiwale" + "\n")
 file_object.write("DATE OF PROCESSING: " + datetime.strftime(datetime.now(), '%Y/%m/%d') + "\n")
 file_object.write("\n")
-file_object.write("The top billed actors in movies Inside Out, Rogue One, and Fantastic Beasts and Where to Find Them with movie ids" + "\n")
+file_object.write("The top billed actors in three movies along with their OMDB IDs" + "\n")
 file_object.write("\n")
-for each_tuple in movie_and_actor_tuples: 
-	file_object.write(str(each_tuple[0])+ ","+ " " + str(each_tuple[1]) +":" + " " + str(each_tuple[2]) + "\n")
+
+file_object.write(("Name of Movie" + " " * 45)[:45] + ("OMDB ID" + " " * 15)[:15] + "Top Billed Actor" + "\n")
+file_object.write(("-------------" + " " * 45)[:45] + ("-------" + " " * 15)[:15] + "----------------" + "\n")
+for each_tuple in movie_and_actor_tuples:
+	file_object.write(((str(each_tuple[0]) + " " * 45)[:45])+ ((str(each_tuple[1]) + " " * 15)[:15]) + str(each_tuple[2]) + "\n") 
 file_object.write("\n")
+
 file_object.write("Movie ids ordered by number of tweets about top billed actors from English speaking users" + "\n")
 file_object.write("\n")
-for key, value in dict_of_movies.items(): 
-	file_object.write(str(key) + ":" + " " + str(value) + "\n")
+ordered_dict_of_movies = sorted(dict_of_movies.items(), key=lambda x: x[1])
+print (ordered_dict_of_movies)
+for each_tuple in ordered_dict_of_movies:
+	file_object.write(str(each_tuple[0]) + ":" + " " + str(each_tuple[1]) + "\n")
 file_object.write("\n")
-file_object.write("The number of alphanuneric tweets that mentioned Amy Poehler with a length greater than 5 characters" + "\n")
+
+file_object.write("The number of characters in the longest alphanumeric word in tweets that mentioned Amy Poehler" + "\n")
 file_object.write("\n")
-file_object.write("Amount:" + " " + str(most_common_word) + "\n")
+file_object.write("Alphanumeric characters in the longest word" + " = " + str(longest_word_length) + "\n")
 file_object.write("\n")
-file_object.write("The users from most followers to least that have favorites greater than 25" + "\n")
+
+file_object.write("The users having more than 25 favorites, ordered by the number of their followers in descending order" + "\n")
 file_object.write("\n")
+file_object.write(("Screen name" + " " * 20)[:20] + "Number of Followers" + "\n")
+file_object.write(("-----------" + " " * 20)[:20] + "-------------------" + "\n")
 for each_user in sorted_users: 
-	file_object.write("User" + " " + (str(each_user[0] + " " * 20)[:20]) + "\t" + "number of followers: " + "\t" + str(each_user[1]) + "\n")
+	file_object.write(((str(each_user[0] + " " * 20)[:20])) + str(each_user[1]) + "\n")
 file_object.write("\n")
 file_object.close()
 
-# Put your tests here, with any edits you now need from when you turned them in with your project plan.
+# Tests for functions and class methods
 class TestProject(unittest.TestCase):
 	def test_movie_caching(self): 
 		fname = open("206_final_project_cache.json", "r")
@@ -435,10 +445,10 @@ class TestProject(unittest.TestCase):
 		self.assertEqual(type(a_user.tuple_of_users_data()), tuple) #testing that tuple_of_users_data of TwitterUser class returns correct type
 	
 
-# Remember to invoke your tests so they will run! (Recommend using the verbosity=2 argument.)
+# Run main 
 if __name__ == "__main__":
 	unittest.main(verbosity=2)	
 
-#I will close the cursor to the database. 
+#Close the cursor to the database. 
 db_conn.close()
 
